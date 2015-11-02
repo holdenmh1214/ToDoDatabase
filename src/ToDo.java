@@ -1,3 +1,4 @@
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.Scanner;
 
@@ -18,11 +19,41 @@ public class ToDo {
         }
     }
 
-    public static void main(String[] args) {
-        ArrayList<ToDoItem> todos = new ArrayList();
+    static void insertTodo(Connection conn, String text) throws SQLException {
+        PreparedStatement stmt = conn.prepareStatement("INSERT INTO todos VALUES (?, false)");
+        stmt.setString(1, text);
+        stmt.execute();
+    }
+
+    static ArrayList<ToDoItem> selectTodos(Connection conn) throws SQLException {
+        Statement stmt = conn.createStatement();
+        ResultSet results = stmt.executeQuery("SELECT * FROM todos");
+        ArrayList<ToDoItem> todos = new ArrayList<>();
+        while (results.next()){
+            String text = results.getString("text");
+            boolean isDone = results.getBoolean("is_done");
+            ToDoItem item = new ToDoItem(text, isDone);
+            todos.add(item);
+        }
+        return todos;
+    }
+
+    static void toggleTodo(Connection conn, int selectNum) throws SQLException {
+        PreparedStatement stmt = conn.prepareStatement("UPDATE todos SET is_done = NOT is_done WHERE ROWNUM = ?");
+        stmt.setInt(1, selectNum);
+        stmt.execute();
+    }
+
+    public static void main(String[] args) throws SQLException {
+        Connection conn = DriverManager.getConnection("jdbc:h2:./main");
+        Statement stmt = conn.createStatement();
+        stmt.execute("CREATE TABLE IF NOT EXISTS todos (text VARCHAR, is_done BOOLEAN)");
+
         Scanner scanner = new Scanner(System.in);
 
+
         while (true) {
+            ArrayList<ToDoItem> todos = selectTodos(conn);
             printTodos(todos);
 
             System.out.println("Options:");
@@ -35,16 +66,14 @@ public class ToDo {
             if (optionNum == 1) {
                 System.out.println("Type a todo and hit enter");
                 String todo = scanner.nextLine();
-                ToDoItem item = new ToDoItem(todo);
-                todos.add(item);
+                insertTodo(conn, todo);
             }
             else if (optionNum == 2) {
                 System.out.println("Type the number of the todo you want to toggle");
                 String select = scanner.nextLine();
                 try {
                     int selectNum = Integer.valueOf(select);
-                    ToDoItem item = todos.get(selectNum - 1);
-                    item.isDone = !item.isDone;
+                    toggleTodo(conn, selectNum);
                 } catch (Exception e) {
                     System.out.println("An error occurred.");
                 }
