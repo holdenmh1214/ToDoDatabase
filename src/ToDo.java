@@ -7,20 +7,18 @@ import java.util.Scanner;
  */
 public class ToDo {
     static void printTodos(ArrayList<ToDoItem> todos) {
-        int todoNum = 1;
         for (ToDoItem todo : todos) {
             String checkBox = "[ ]";
             if (todo.isDone) {
                 checkBox = "[x]";
             }
-            String line = String.format("%d. %s %s", todoNum, checkBox, todo.text);
+            String line = String.format("%d. %s %s", todo.id, checkBox, todo.text);
             System.out.println(line);
-            todoNum++;
         }
     }
 
     static void insertTodo(Connection conn, String text) throws SQLException {
-        PreparedStatement stmt = conn.prepareStatement("INSERT INTO todos VALUES (?, false)");
+        PreparedStatement stmt = conn.prepareStatement("INSERT INTO todos VALUES (NULL, ?, false)");
         stmt.setString(1, text);
         stmt.execute();
     }
@@ -30,16 +28,17 @@ public class ToDo {
         ResultSet results = stmt.executeQuery("SELECT * FROM todos");
         ArrayList<ToDoItem> todos = new ArrayList<>();
         while (results.next()){
+            int id = results.getInt("id");
             String text = results.getString("text");
             boolean isDone = results.getBoolean("is_done");
-            ToDoItem item = new ToDoItem(text, isDone);
+            ToDoItem item = new ToDoItem(id, text, isDone);
             todos.add(item);
         }
         return todos;
     }
 
     static void toggleTodo(Connection conn, int selectNum) throws SQLException {
-        PreparedStatement stmt = conn.prepareStatement("UPDATE todos SET is_done = NOT is_done WHERE ROWNUM = ?");
+        PreparedStatement stmt = conn.prepareStatement("UPDATE todos SET is_done = NOT is_done WHERE id = ?");
         stmt.setInt(1, selectNum);
         stmt.execute();
     }
@@ -47,7 +46,7 @@ public class ToDo {
     public static void main(String[] args) throws SQLException {
         Connection conn = DriverManager.getConnection("jdbc:h2:./main");
         Statement stmt = conn.createStatement();
-        stmt.execute("CREATE TABLE IF NOT EXISTS todos (text VARCHAR, is_done BOOLEAN)");
+        stmt.execute("CREATE TABLE IF NOT EXISTS todos (id IDENTITY(1,1), text VARCHAR, is_done BOOLEAN)");
 
         Scanner scanner = new Scanner(System.in);
 
